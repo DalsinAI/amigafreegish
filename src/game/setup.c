@@ -1,0 +1,545 @@
+/*
+Copyright (C) 2005, 2010 - Cryptic Sea
+
+This file is part of Gish.
+
+Gish is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*/
+
+#include "../config.h"
+
+#include <stdlib.h>
+#include <time.h>
+
+#include "../game/setup.h"
+#include "../game/animation.h"
+#include "../game/gameaudio.h"
+#include "../game/boss.h"
+#include "../game/editor.h"
+#include "../game/game.h"
+#include "../game/level.h"
+#include "../game/gameobject.h"
+#include "../game/objfunc.h"
+#include "../game/physics.h"
+#include "../game/random.h"
+#include "../game/replay.h"
+#include "../game/sprite.h"
+#include "../math/vector.h"
+#include "../physics/bond.h"
+#include "../physics/particle.h"
+
+void setuplevel(void)
+  {
+  int count,count2;
+  int numofobjectstemp;
+  float vec[3];
+
+  for (count=0;count<256;count++)
+  for (count2=0;count2<256;count2++)
+    level.gridmod[count][count2]=0;
+
+  setuplevellines(1,1,254,254);
+
+  numofparticles=0;
+  numofbonds=0;
+  numofobjects=0;
+  numofropes=0;
+  physicstemp.numofbonds=0;
+  numofsprites=0;
+  numofbosses=0;
+
+  for (count=0;count<level.numofobjects;count++)
+    {
+    numofobjectstemp=numofobjects;
+
+    if (level.object[count].type==LVL_OBJ_TYPE_GISH)
+      {
+        if (level.gametype != GAMETYPE_CAMPAIGN || game.numofplayers == 1) {
+            createtarboy(level.object[count].position);
+            object[numofobjects - 1].texturenum = 1;
+        }
+        if (level.gametype == GAMETYPE_CAMPAIGN) {
+            if (game.numofplayers > 1) {
+                for (int i = 0; i < game.numofplayers; i++)
+                {
+                    float angle = pi / 2 + (float)i * 2 * pi / game.numofplayers;
+                    float size = 0.9f;
+                    vec[0] = level.object[count].position[0] + cos(angle) * size;
+                    vec[1] = level.object[count].position[1] - sin(angle) * size;
+                    vec[2] = 0.0f;
+                    createtarboy(vec);
+                    object[numofobjects - 1].texturenum = 1;
+                }
+            }
+        }
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_BOX)
+      createbox(level.object[count].position,level.object[count].size[0],level.object[count].size[1],level.object[count].mass,level.object[count].friction);
+    if (level.object[count].type==LVL_OBJ_TYPE_MIDDLE_FIXED_BOX)
+      {
+      createbox(level.object[count].position,level.object[count].size[0],level.object[count].size[1],level.object[count].mass,level.object[count].friction);
+      createparticle(2,level.object[count].position,NULL,10000.0f,-1,10000);
+      createbond(numofparticles-5,numofparticles-1,1,-1);
+      createbond(numofparticles-4,numofparticles-1,1,-1);
+      createbond(numofparticles-3,numofparticles-1,1,-1);
+      createbond(numofparticles-2,numofparticles-1,1,-1);
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_LEFT_FIXED_BOX_OR_CAR)
+      {
+      if (level.gametype!=GAMETYPE_2RACING)
+        {
+        createbox(level.object[count].position,level.object[count].size[0],level.object[count].size[1],level.object[count].mass,level.object[count].friction);
+        vec[0]=level.object[count].position[0]-(level.object[count].size[0]-1.0f)*0.5f;
+        vec[1]=level.object[count].position[1]-(level.object[count].size[1]-1.0f)*0.5f;
+        vec[2]=0.0f;
+        createparticle(2,vec,NULL,10000.0f,-1,10000);
+        createbond(numofparticles-5,numofparticles-1,1,-1);
+        createbond(numofparticles-4,numofparticles-1,1,-1);
+        createbond(numofparticles-3,numofparticles-1,1,-1);
+        createbond(numofparticles-2,numofparticles-1,1,-1);
+        }
+      else
+        createcar(level.object[count].position,level.object[count].size[0],level.object[count].size[1],level.object[count].mass,level.object[count].friction);
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_RIGHT_FIXED_BOX)
+      {
+      createbox(level.object[count].position,level.object[count].size[0],level.object[count].size[1],level.object[count].mass,level.object[count].friction);
+      vec[0]=level.object[count].position[0]+(level.object[count].size[0]-1.0f)*0.5f;
+      vec[1]=level.object[count].position[1]+(level.object[count].size[1]-1.0f)*0.5f;
+      vec[2]=0.0f;
+      createparticle(2,vec,NULL,10000.0f,-1,10000);
+      createbond(numofparticles-5,numofparticles-1,1,-1);
+      createbond(numofparticles-4,numofparticles-1,1,-1);
+      createbond(numofparticles-3,numofparticles-1,1,-1);
+      createbond(numofparticles-2,numofparticles-1,1,-1);
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_WHEEL)
+      {
+      createwheel(level.object[count].position,level.object[count].size[0],level.object[count].size[1],level.object[count].mass,level.object[count].friction,0);
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_ANCHORED_WHEEL)
+      {
+      createwheel(level.object[count].position,level.object[count].size[0],level.object[count].size[1],level.object[count].mass,level.object[count].friction,1);
+      //createparticle(2,level.object[count].position,NULL,10000.0f,-1,10000);
+      //for (count2=0;count2<16;count2++)
+      //  createbond(numofparticles-17+count2,numofparticles-1,1,-1);
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_LIGHT_OR_ANCHOR)
+      createanchor(level.object[count].position);
+    if (level.object[count].type==LVL_OBJ_TYPE_BUTTON)
+      createbutton(level.object[count].position,level.object[count].mass);
+    if (level.object[count].type==LVL_OBJ_TYPE_ONE_TIME_BUTTON)
+      {
+      createbutton(level.object[count].position,level.object[count].mass);
+      object[numofobjects-1].idata[1]=1;
+      }
+    if (level.object[count].type== LVL_OBJ_TYPE_SWITCH_UP)
+      createswitch(level.object[count].position,level.object[count].mass,0);
+    if (level.object[count].type== LVL_OBJ_TYPE_SWITCH_RIGHT)
+      createswitch(level.object[count].position,level.object[count].mass,1);
+    if (level.object[count].type== LVL_OBJ_TYPE_SWITCH_DOWN)
+      createswitch(level.object[count].position,level.object[count].mass,2);
+    if (level.object[count].type== LVL_OBJ_TYPE_SWITCH_LEFT)
+      createswitch(level.object[count].position,level.object[count].mass,3);
+    if (level.object[count].type==LVL_OBJ_TYPE_AREASWITCH)
+      createareaswitch(level.object[count].position,level.object[count].size[0],level.object[count].size[1]);
+    if (level.object[count].type== LVL_OBJ_TYPE_ONE_TIME_AREASWITCH)
+      {
+      createareaswitch(level.object[count].position,level.object[count].size[0],level.object[count].size[1]);
+      object[numofobjects-1].idata[1]=1;
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_SECRET_AREASWITCH)
+      {
+      createareaswitch(level.object[count].position,level.object[count].size[0],level.object[count].size[1]);
+      object[numofobjects-1].idata[1]=IS_SECRET;
+      }
+    if (level.object[count].type==LVL_OBJ_TYPE_GENERATOR)
+      creategenerator(level.object[count].position,level.object[count].mass);
+
+    if (level.object[count].type==LVL_OBJ_TYPE_BONE_NIBBLER)
+      createbeast(0,level.object[count].position,1.0f,1.0f,1.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_CAVE_NIBBLER)
+      createbeast(1,level.object[count].position,1.0f,1.0f,1.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_HELL_NIBBLER)
+      createbeast(2,level.object[count].position,1.0f,1.0f,1.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_MUMMY)
+      createbeast(3,level.object[count].position,1.5f,1.1f,8.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_SKELETON)
+      createbeast(4,level.object[count].position,1.5f,1.1f,8.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_ZOMBIE)
+      createbeast(5,level.object[count].position,1.5f,1.1f,8.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_GIMP)
+      createbeast(6,level.object[count].position,1.5f,1.1f,8.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_VIS_SISTER)
+      createbeast(7,level.object[count].position,3.0f,3.0f,20.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_ANGEL_NIBBLER)
+      createbeast(8,level.object[count].position,1.0f,1.0f,1.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_ALTERBOY)
+      createbeast(9,level.object[count].position,1.5f,1.1f,8.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_STITCH)
+      createbeast(10,level.object[count].position,1.5f,1.1f,8.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_POOBLER)
+      createbeast(11,level.object[count].position,1.0f,1.0f,1.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_HONEY_BUCKET)
+      createbeast(12,level.object[count].position,2.0f,0.85f,3.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_SISTER_VIS)
+      createbeast(13,level.object[count].position,3.0f,3.0f,20.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_PAUNCHY_CHOPS)
+      createboss(14,level.object[count].position);
+    if (level.object[count].type==LVL_OBJ_TYPE_BASINJIN)
+      createbeast(15,level.object[count].position,2.0f,2.0f,8.0f,0.2f);
+    if (level.object[count].type==LVL_OBJ_TYPE_SATAN)
+      createbeast(16,level.object[count].position,1.0f,1.0f,1.0f,0.2f);
+
+    if (numofobjects!=numofobjectstemp)
+      {
+      if (level.object[count].type>LVL_OBJ_TYPE_GISH && level.object[count].type<LVL_OBJ_TYPE_MONSTER_BEGIN)
+        object[numofobjects-1].texturenum=level.object[count].texturenum;
+      if (level.gametype == GAMETYPE_CAMPAIGN && level.object[count].link != -1){
+          object[numofobjects - 1].link = level.object[count].link + game.numofplayers - 1;
+          if (game.levelnum == 34)
+              object[numofobjects - 1].link += game.numofplayers - 1;
+      }
+      else
+          object[numofobjects - 1].link = level.object[count].link;
+      
+      object[numofobjects-1].lighttype=level.object[count].lighttype;
+      if (level.object[count].lighttype==LIGHT_DEFAULT_ON || level.object[count].lighttype==FLICKERING_LIGHT)
+        object[numofobjects-1].lighton=1;
+      if (level.object[count].lighttype==LIGHT_DEFAULT_OFF)
+        object[numofobjects-1].lighton=0;
+  
+      object[numofobjects-1].size[0]=level.object[count].size[0];
+      object[numofobjects-1].size[1]=level.object[count].size[1];
+  
+      object[numofobjects-1].lightcolor[0]=level.object[count].lightcolor[0];
+      object[numofobjects-1].lightcolor[1]=level.object[count].lightcolor[1];
+      object[numofobjects-1].lightcolor[2]=level.object[count].lightcolor[2];
+      object[numofobjects-1].lightintensity=level.object[count].lightintensity;
+      object[numofobjects-1].lightintensitymax=level.object[count].lightintensity;
+      }
+    }
+
+  for (count=0;count<numofobjects;count++)
+    {
+    if (object[count].type == OBJ_TYPE_BEAST_OR_BOBBLE)
+    if ((object[count].beasttype>=3 && object[count].beasttype<=6) || object[count].beasttype==9 || object[count].beasttype==10)
+      {
+      vec[0]=object[count].position[0];
+      vec[1]=object[count].position[1]+1.4f;//+1.42f;
+      vec[2]=0.0f;
+      createhead(vec,2.0f,1.6f,2.0f,0.5f);
+
+      object[count].link=numofobjects-1;
+
+      //createbond(object[numofobjects-1].particle[0],object[count].particle[0],6,count);
+      createbond(object[numofobjects-1].particle[2],object[count].particle[0],6,count);
+      createbond(object[numofobjects-1].particle[4],object[count].particle[0],6,count);
+      createbond(object[numofobjects-1].particle[0],object[count].particle[1],6,count);
+      createbond(object[numofobjects-1].particle[2],object[count].particle[1],6,count);
+      //createbond(object[numofobjects-1].particle[4],object[count].particle[1],6,count);
+      }
+    }
+
+  for (count=0;count<level.numofropes;count++)
+    {
+
+      int obj1;
+      int obj2;
+      if (level.gametype == GAMETYPE_CAMPAIGN) {
+          obj1 = level.rope[count].obj1 + game.numofplayers - 1;
+          obj2 = level.rope[count].obj2 + game.numofplayers - 1;
+          if (game.levelnum == 34){
+              obj1 += game.numofplayers - 1;
+              obj2 += game.numofplayers - 1;
+          }
+      }
+      else {
+          obj1 = level.rope[count].obj1;
+          obj2 = level.rope[count].obj2;
+      }
+    createrope(
+        level.rope[count].type,
+        object[obj1].particle[level.rope[count].obj1part],
+        object[obj2].particle[level.rope[count].obj2part],
+        obj1,
+        obj2,
+        level.rope[count].texturenum);
+    }
+  }
+
+void setupgame(void)
+  {
+  int count,count2;
+
+  srand(time(NULL));
+  randomnum=0;
+
+  for (count=numofsounds-1;count>=0;count--)
+    deletesound(count);
+
+  numofreplayframes=0;
+
+  game.score[0]=0;
+  game.score[1]=0;
+  game.combo=1;
+  game.combodelay=0;
+  game.scoredelay=0;
+  game.startdelay=0;
+  game.exitdelay=0;
+  game.over=GAMEOVER_NONE;
+  game.exit=GAMEEXIT_NONE;
+  game.time=level.time;
+  game.pause=0;
+  game.framenum=0;
+  game.bosslevel=0;
+  game.dialog=0;
+
+  if (game.levelnum==6)
+    {
+    game.bosslevel=1;
+    game.dialog=2;
+    game.dialogdelay=1000;
+    }
+  if (game.levelnum==13)
+    {
+    game.bosslevel=1;
+    game.dialog=3;
+    game.dialogdelay=1000;
+    }
+  if (game.levelnum==20)
+    {
+    game.bosslevel=1;
+    game.dialog=3;
+    game.dialogdelay=1000;
+    }
+  if (game.levelnum==27)
+    {
+    game.bosslevel=1;
+    game.dialog=3;
+    game.dialogdelay=1000;
+    }
+  if (game.levelnum==33)
+    {
+    game.bosslevel=1;
+    game.dialog=3;
+    game.dialogdelay=1000;
+    }
+  if (game.levelnum==34)
+    {
+    game.bosslevel=1;
+    game.dialog=8;
+    game.dialogdelay=1000;
+    }
+  if (game.levelnum==68)
+    {
+    game.bosslevel=1;
+    game.dialog=16;
+    game.dialogdelay=1000;
+    }
+
+  if (level.gametype==GAMETYPE_2FOOTBALL)
+    game.time=6000;
+  if (level.gametype==GAMETYPE_2GREED)
+    game.time=6000;
+  if (level.gametype==GAMETYPE_4FOOTBALL)
+    game.time=6000;
+
+  for (count=0;count<16;count++)
+    {
+    game.bonus[count]=0;
+    game.numofbonus[count]=0;
+    }
+
+  for (count=0;count<256;count++)
+  for (count2=0;count2<256;count2++)
+    {
+    if (level.grid[count][count2]>=240 && level.grid[count][count2]<=247)
+      game.numofbonus[level.grid[count][count2]-240]++;
+    if (level.grid[count][count2]>=248 /*&& level.grid[count][count2]<=255*/)
+      game.numofbonus[level.grid[count][count2]-248]++;
+    }
+
+  for (count=0;count<numofobjects;count++)
+  if (object[count].type==OBJ_TYPE_AREASWITCH)
+  if (object[count].idata[1]==IS_SECRET)
+    game.numofbonus[8]++;
+
+  if (level.gametype==GAMETYPE_COLLECTION)
+    game.startdelay=100;
+
+  if ((level.gametype>=GAMETYPE_2FOOTBALL && level.gametype<=GAMETYPE_2DRAGSTER) || level.gametype==GAMETYPE_4FOOTBALL || level.gametype==GAMETYPE_4SUMO)
+    game.startdelay=100;
+
+  if (level.gametype<GAMETYPE_2FOOTBALL && !editor.active)
+    {
+    view.position[0]=object[0].position[0];
+    view.position[1]=object[0].position[1];
+    view.position[2]=10.0f;
+    if (game.levelnum==64)
+      view.position[1]=131.5f;
+    if (game.levelnum==65)
+      {
+      count=object[0].position[0]+16.0f;
+      count/=32;
+      count*=32;
+      view.position[0]=count;
+      view.position[1]=126.0f;
+      }
+    }
+  if (level.gametype==GAMETYPE_2FOOTBALL)
+    {
+    view.position[0]=127.5f;
+    view.position[1]=127.5f;
+    view.position[2]=10.0f;
+    }
+  if (level.gametype==GAMETYPE_2SUMO)
+    {
+    view.position[0]=127.0f;
+    view.position[1]=124.5f;
+    view.position[2]=10.0f;
+    }
+  if (level.gametype==GAMETYPE_2GREED)
+    {
+    view.position[0]=126.5f;
+    view.position[1]=130.0f;
+    view.position[2]=10.0f;
+    }
+  if (level.gametype==GAMETYPE_2DUEL)
+    {
+    view.position[0]=127.0f;
+    view.position[1]=124.5f;
+    view.position[2]=10.0f;
+    }
+  if (level.gametype==GAMETYPE_2DRAGSTER)
+    {
+    view.position[0]=127.5f;
+    view.position[1]=127.5f;
+    view.position[2]=10.0f;
+    }
+  if (level.gametype==GAMETYPE_4FOOTBALL)
+    {
+    view.position[0]=127.5f;
+    view.position[1]=127.5f;
+    view.position[2]=10.0f;
+    }
+  if (level.gametype==GAMETYPE_4SUMO)
+    {
+    view.position[0]=127.0f;
+    view.position[1]=127.5f;
+    view.position[2]=10.0f;
+    }
+
+  resetorientation(view.orientation);
+  }
+
+void loadstorylevel(int levelnum)
+  {
+  if (levelnum==1)
+    loadlevel("sewer1.lvl");
+  if (levelnum==2)
+    loadlevel("sewer2.lvl");
+  if (levelnum==3)
+    loadlevel("sewer3.lvl");
+  if (levelnum==4)
+    loadlevel("sewer4.lvl");
+  if (levelnum==5)
+    loadlevel("sewer5.lvl");
+  if (levelnum==6)
+    loadlevel("sewer6.lvl");
+  if (levelnum==7)
+    loadlevel("sewer7.lvl");
+
+  if (levelnum==8)
+    loadlevel("cave1.lvl");
+  if (levelnum==9)
+    loadlevel("cave2.lvl");
+  if (levelnum==10)
+    loadlevel("cave3.lvl");
+  if (levelnum==11)
+    loadlevel("cave4.lvl");
+  if (levelnum==12)
+    loadlevel("cave5.lvl");
+  if (levelnum==13)
+    loadlevel("cave6.lvl");
+  if (levelnum==14)
+    loadlevel("cave7.lvl");
+
+  if (levelnum==15)
+    loadlevel("hell1.lvl");
+  if (levelnum==16)
+    loadlevel("hell2.lvl");
+  if (levelnum==17)
+    loadlevel("hell3.lvl");
+  if (levelnum==18)
+    loadlevel("hell4.lvl");
+  if (levelnum==19)
+    loadlevel("hell5.lvl");
+  if (levelnum==20)
+    loadlevel("hell6.lvl");
+  if (levelnum==21)
+    loadlevel("hell7.lvl");
+
+  if (levelnum==22)
+    loadlevel("egypt1.lvl");
+  if (levelnum==23)
+    loadlevel("egypt2.lvl");
+  if (levelnum==24)
+    loadlevel("egypt3.lvl");
+  if (levelnum==25)
+    loadlevel("egypt4.lvl");
+  if (levelnum==26)
+    loadlevel("egypt5.lvl");
+  if (levelnum==27)
+    loadlevel("egypt6.lvl");
+  if (levelnum==28)
+    loadlevel("egypt7.lvl");
+
+  if (levelnum==29)
+    loadlevel("church1.lvl");
+  if (levelnum==30)
+    loadlevel("church2.lvl");
+  if (levelnum==31)
+    loadlevel("church3.lvl");
+  if (levelnum==32)
+    loadlevel("church4.lvl");
+  if (levelnum==33)
+    loadlevel("church5.lvl");
+  if (levelnum==34)
+    loadlevel("church6.lvl");
+  if (levelnum==64)
+    loadlevel("sewer8.lvl");
+  if (levelnum==65)
+    loadlevel("cave8.lvl");
+  if (levelnum==66)
+    loadlevel("egypt8.lvl");
+  if (levelnum==67)
+    loadlevel("death.lvl");
+  if (levelnum==68)
+    loadlevel("death2.lvl");
+  game.levelnum=levelnum;
+  }
+
+void loadcollectionlevel(int levelnum)
+  {
+  char loadfilename[32]="co00.lvl";
+
+  loadfilename[2]=48+levelnum/10;
+  loadfilename[3]=48+levelnum%10;
+
+  loadlevel(loadfilename);
+  }
+
