@@ -1,0 +1,85 @@
+# Freegish 2.0.0 for AmigaOS 3.x, 68040/68060 + FPU, on OpenGPU's SDL 2 and
+# OpenGL.
+#
+#   make -f amiga/Makefile.amigaos -j2 dist \
+#        STOVE=/path/to/openamigagcc-16.2.0-open4 \
+#        NDK=/path/to/OpenNDK/Include_H SDL2KIT=/path/to/opengpu-sdk \
+#        DEPS=/path/to/m68k-amigaos
+#
+# src/CMakeLists.txt's sources, with LINUX defined for the game's Unix code
+# (unistd.h, dirent, GL/gl.h). SDL2KIT is the OpenGPU developer kit (SDL2
+# and GL: the program's halves of LIBS:OpenGPU/SDL2.module and GL.module).
+# There is no OpenAL for AmigaOS 3: amiga/al_lite.c plays the game's sounds
+# on SDL 2's audio, and libvorbisfile is a stub (include/vorbis): Debian's
+# free source has no music to play. DEPS has the Team's static libpng and
+# zlib (/mnt/amigachrome/team2/deps/m68k-amigaos).
+
+STOVE   ?= $(HOME)/CradleLab/toolchain/openamigagcc-16.2.0-open4-x86_64-linux
+NDK     ?= $(HOME)/CradleLab/gfopensdk/OpenNDK/Include_H
+SDL2KIT ?= /mnt/amigachrome/team2/deps/opengpu-sdk
+DEPS    ?= /mnt/amigachrome/team2/deps/m68k-amigaos
+CC      = $(STOVE)/bin/m68k-amigaos-gcc
+STRIP   = $(STOVE)/bin/m68k-amigaos-strip
+CPU     ?= -m68040 -m68881
+# -fno-tree-loop-distribute-patterns: GCC 16's loop miscompile (the kit's
+# sdl2-config gives it for GCC 16 too).
+OPT     ?= -O2 -fomit-frame-pointer -fno-tree-loop-distribute-patterns
+
+BUILD   = build/amigaos
+OBJDIR  = $(BUILD)/obj
+PROG    = Freegish
+OUT     = dist/Freegish
+
+DEFS    = -D__amigaos__ -DNDEBUG -DLINUX=1
+INC     = -Iamiga/include -I$(SDL2KIT)/include/SDL2 -I$(SDL2KIT)/include -I$(DEPS)/include
+CFLAGS  = -noixemul $(OPT) $(CPU) -fno-common -MMD -MP -std=gnu99 -w
+LDFLAGS = -noixemul $(CPU) -Wl,--wrap=getenv -Wl,--wrap=chdir -Wl,--wrap=getcwd
+LIBS    = -L$(SDL2KIT)/lib -L$(DEPS)/lib -lSDL2 -lGL -lpng -lz -lpthread -latomic -lm
+
+SRC     = $(addprefix src/,audio/audio.c $(wildcard src/game/*.c) input/joystick.c \
+          input/keyboard.c input/mouse.c math/intersec.c math/vector.c menu/menu.c \
+          parser/parser.c physics/bond.c physics/object.c physics/particle.c \
+          sdl/endian.c sdl/event.c sdl/file.c sdl/video.c video/glfunc.c video/opengl.c \
+          video/text.c video/texture.c main.c)
+SRC    := $(patsubst src/src/%,src/%,$(SRC))
+CSRC    = amiga/stack.c amiga/al_lite.c amiga/amiga_start.c amiga/amiga_env.c amiga/amiga_chdir.c
+OBJS    = $(SRC:%.c=$(OBJDIR)/%.o) $(CSRC:%.c=$(OBJDIR)/%.o)
+ICONS   = $(wildcard amiga/icons/*.info)
+
+all: $(BUILD)/$(PROG)
+
+$(BUILD)/$(PROG): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@.debug $(OBJS) $(LIBS)
+	$(STRIP) -o $@ $@.debug
+
+$(OBJDIR)/amiga/%.o: amiga/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -Iamiga/include -I$(SDL2KIT)/include/SDL2 -I$(NDK) -Wall -c -o $@ $<
+
+$(OBJDIR)/%.o: %.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(DEFS) $(INC) -c -o $@ $<
+
+# The drawer: the program; datapacks/ (the free game's levels, textures,
+# animations and sounds, as Debian's source has them: no music), the window
+# icon (freegish.bmp), ReadMe and the licences. The settings, scores and
+# players are kept in the drawer's user/.freegish.
+dist: $(BUILD)/$(PROG) $(ICONS) AMIGA_PORT.md
+	rm -rf $(OUT) && mkdir -p $(OUT)
+	cp $(BUILD)/$(PROG) $(OUT)/
+	cp -R datapacks $(OUT)/
+	cp freegish.bmp $(OUT)/
+	cp AMIGA_PORT.md $(OUT)/ReadMe
+	cp COPYING.txt $(OUT)/COPYING.txt
+	cp License.txt $(OUT)/License-data.txt
+	cp amiga/icons/Freegish.info amiga/icons/ReadMe.info $(OUT)/
+	for f in COPYING.txt License-data.txt; do cp amiga/icons/ReadMe.info $(OUT)/$$f.info; done
+	cp amiga/icons/Folder.info $(OUT)/datapacks.info
+	cp amiga/icons/Freegish-drawer.info dist/Freegish.info
+
+-include $(OBJS:.o=.d)
+
+clean:
+	rm -rf $(BUILD)
+
+.PHONY: all clean dist
