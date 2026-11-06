@@ -22,11 +22,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "../config.h"
 #include "../video/opengl.h"
 
-#if defined(LINUX) || defined(MAC)
+#if defined(LINUX) || defined(MAC) || defined(__GNU__)
   #include <unistd.h>
 #endif
 
 #include <math.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "../game/animation.h"

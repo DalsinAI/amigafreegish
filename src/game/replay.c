@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "../video/opengl.h"
 
-#if defined(LINUX) || defined(MAC)
+#if defined(LINUX) || defined(MAC) || defined(__GNU__)
   #include <unistd.h>
 #endif
 
@@ -196,7 +196,7 @@ void replaymenu(void)
   int pagenum;
   char path[PATH_MAX];
 
-  listfiles(userpath(path,"replay",NULL),"*.gre",levellist,0);
+  listfiles(userpath(path,"replay",NULL),"*.gre",levellist,1024,0);
 
   numoffiles=0;
   while (levellist[numoffiles][0]!=0)
