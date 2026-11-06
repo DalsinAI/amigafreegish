@@ -43,10 +43,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #endif
 
+#ifdef __amigaos__
+void amiga_start(void); /* amiga/amiga_start.c: into the drawer */
+#endif
+
 int main (int argc,char *argv[])
   {
   int count;
   int flags;
+
+#ifdef __amigaos__
+  amiga_start();
+#endif
 
 #ifdef DATAPATH
   chdir(DATAPATH);
