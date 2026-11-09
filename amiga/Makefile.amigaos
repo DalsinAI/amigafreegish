@@ -70,6 +70,7 @@ dist: $(BUILD)/$(PROG) $(ICONS) AMIGA_PORT.md
 	cp -R datapacks $(OUT)/
 	cp freegish.bmp $(OUT)/
 	cp AMIGA_PORT.md $(OUT)/ReadMe
+	cp amiga/Controls $(OUT)/Controls
 	cp COPYING.txt $(OUT)/COPYING.txt
 	cp License.txt $(OUT)/License-data.txt
 	cp amiga/icons/Freegish.info amiga/icons/ReadMe.info $(OUT)/
