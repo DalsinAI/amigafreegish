@@ -4,20 +4,23 @@
 #   make -f amiga/Makefile.amigaos -j2 dist \
 #        STOVE=/path/to/openamigagcc-16.2.0-open4 \
 #        NDK=/path/to/OpenNDK/Include_H SDL2KIT=/path/to/opengpu-sdk \
-#        DEPS=/path/to/m68k-amigaos
+#        DEPS=/path/to/m68k-amigaos [OPENALKIT=/path/to/openal-kit]
 #
 # src/CMakeLists.txt's sources, with LINUX defined for the game's Unix code
 # (unistd.h, dirent, GL/gl.h). SDL2KIT is the OpenGPU developer kit (SDL2
 # and GL: the program's halves of LIBS:OpenGPU/SDL2.module and GL.module).
-# There is no OpenAL for AmigaOS 3: amiga/al_lite.c plays the game's sounds
-# on SDL 2's audio, and libvorbisfile is a stub (include/vorbis): Debian's
-# free source has no music to play. DEPS has the Team's static libpng and
+# The sounds go through OpenAL: LIBS:GFOpenGPU/OpenAL.module (gfopenrtg
+# library/modules/openal), one copy for every program, which plays through
+# AHI. OPENALKIT has its include/AL (al.h, alc.h) and lib/libopenal.a; the
+# GFOpenGPU kit carries both, so it defaults to SDL2KIT. libvorbisfile is a
+# stub (include/vorbis): Debian's free source has no music to play. DEPS has the Team's static libpng and
 # zlib (/mnt/amigachrome/team2/deps/m68k-amigaos).
 
 STOVE   ?= $(HOME)/CradleLab/toolchain/openamigagcc-16.2.0-open4-x86_64-linux
 NDK     ?= $(HOME)/CradleLab/gfopensdk/OpenNDK/Include_H
 SDL2KIT ?= /mnt/amigachrome/team2/deps/opengpu-sdk
 DEPS    ?= /mnt/amigachrome/team2/deps/m68k-amigaos
+OPENALKIT ?= $(SDL2KIT)
 CC      = $(STOVE)/bin/m68k-amigaos-gcc
 STRIP   = $(STOVE)/bin/m68k-amigaos-strip
 CPU     ?= -m68040 -m68881
@@ -31,10 +34,10 @@ PROG    = Freegish
 OUT     = dist/Freegish
 
 DEFS    = -D__amigaos__ -DNDEBUG -DLINUX=1
-INC     = -Iamiga/include -I$(SDL2KIT)/include/SDL2 -I$(SDL2KIT)/include -I$(DEPS)/include
+INC     = -Iamiga/include -I$(OPENALKIT)/include -I$(SDL2KIT)/include/SDL2 -I$(SDL2KIT)/include -I$(DEPS)/include
 CFLAGS  = -noixemul $(OPT) $(CPU) -fno-common -MMD -MP -std=gnu99 -w
 LDFLAGS = -noixemul $(CPU) -Wl,--wrap=getenv -Wl,--wrap=chdir -Wl,--wrap=getcwd
-LIBS    = -L$(SDL2KIT)/lib -L$(DEPS)/lib -lSDL2 -lGL -lpng -lz -lpthread -latomic -lm
+LIBS    = -L$(OPENALKIT)/lib -lopenal -L$(SDL2KIT)/lib -L$(DEPS)/lib -lSDL2 -lGL -lpng -lz -lpthread -latomic -lm -lamiga
 
 SRC     = $(addprefix src/,audio/audio.c $(wildcard src/game/*.c) input/joystick.c \
           input/keyboard.c input/mouse.c math/intersec.c math/vector.c menu/menu.c \
@@ -42,7 +45,7 @@ SRC     = $(addprefix src/,audio/audio.c $(wildcard src/game/*.c) input/joystick
           sdl/endian.c sdl/event.c sdl/file.c sdl/video.c video/glfunc.c video/opengl.c \
           video/text.c video/texture.c main.c)
 SRC    := $(patsubst src/src/%,src/%,$(SRC))
-CSRC    = amiga/stack.c amiga/al_lite.c amiga/amiga_start.c amiga/amiga_env.c amiga/amiga_chdir.c
+CSRC    = amiga/stack.c amiga/amiga_start.c amiga/amiga_env.c amiga/amiga_chdir.c
 OBJS    = $(SRC:%.c=$(OBJDIR)/%.o) $(CSRC:%.c=$(OBJDIR)/%.o)
 ICONS   = $(wildcard amiga/icons/*.info)
 

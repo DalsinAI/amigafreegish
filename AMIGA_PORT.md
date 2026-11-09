@@ -79,11 +79,11 @@ dist/Freegish (and dist/Freegish.info).
 What was changed
 ----------------
 
-- No OpenAL for AmigaOS 3: amiga/al_lite.c gives the game the OpenAL
-  calls it makes (buffers, sources with gain, pitch, looping and queues,
-  the listener) on SDL 2's audio, mixing in 16.16 fixed point with each
-  source's distance and side worked out when it changes. libvorbisfile and
-  libogg are stubs (amiga/include): there is no music to play.
+- Sound is OpenAL 1.1 from LIBS:GFOpenGPU/OpenAL.module (GFOpenUp
+  installs it), shared by every program and played through AHI, as on any
+  other system: the game links -lopenal. Without the module the game runs
+  silent. libvorbisfile and libogg are stubs (amiga/include): there is no
+  music to play.
 - src/main.c: main() first moves into the drawer (amiga/amiga_start.c),
   where the game finds datapacks/. $HOME is the drawer's user/
   (amiga/amiga_env.c, -Wl,--wrap=getenv, from the GNU Robbo port), and
